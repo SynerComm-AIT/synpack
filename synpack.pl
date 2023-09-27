@@ -85,7 +85,11 @@ sub hex_format_data {
 
 
 print_header();
-my $filepath  = shift @ARGV or die("Usage: perl .\\synpack.pl <path_to_exe> <arguments>\n");
+my $usage = qq{
+Usage: perl .\\synpack.pl <path_to_exe> <arguments>
+(You can also omit the arguments and pass them directly to the binary)
+};
+my $filepath  = shift @ARGV or die($usage);
 my $exe_args = shift @ARGV or "";
 
 c_print("[+] Opening: ", $filepath);

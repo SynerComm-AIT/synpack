@@ -1,3 +1,4 @@
+use std::env;
 use aes::cipher::{KeyIvInit, BlockDecryptMut, block_padding::Pkcs7};
 use clroxide::clr::Clr;
 
@@ -15,7 +16,13 @@ fn main() {
 
     let mut bin_data: Vec<u8> = vec![SYNPACK_DATA];
 
-    let args: Vec<String> = vec![SYNPACK_ARGS];
+    let mut args: Vec<String> = vec![SYNPACK_ARGS];
+
+    if args.len() == 0 {
+        let mut cmd_args: Vec<String> = env::args().collect();
+        cmd_args.remove(0);
+        args = cmd_args;
+    }
     
     decrypt_aes(&mut bin_data);
     let mut clr: Clr = Clr::new(bin_data, args).unwrap();
