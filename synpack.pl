@@ -5,6 +5,7 @@ use File::Copy;
 use Term::ANSIColor qw(:constants);
 use Bytes::Random::Secure qw(random_bytes);
 use Crypt::Mode::CBC;
+use Path::Tiny qw(path);
 
 
 sub print_header {
@@ -22,7 +23,7 @@ LOGO
 sub c_print {
     my ($stmt, $val) = @_;
 
-    print(BOLD, BRIGHT_CYAN, "$stmt", RESET);
+    print(BOLD, BRIGHT_BLUE, "$stmt", RESET);
     print("$val\n") if defined $val;
 }
 
@@ -31,6 +32,8 @@ sub aes_encrypt {
 
     my $key = random_bytes(16);
     my $iv  = random_bytes(16);
+
+    c_print("[+] Reading " . length($data) . " bytes\n");
 
     my $cbc = Crypt::Mode::CBC->new('AES');
 
@@ -65,7 +68,6 @@ sub get_file_bytes {
 
     my $stat = stat($file);
     my $filesize = $stat->size;
-    print("$filesize\n");
 
     read($file, $buffer, $filesize);
 
@@ -83,7 +85,8 @@ sub hex_format_data {
 
 
 print_header();
-my $filepath = shift @ARGV || die("Please pass file path to .NET executable!\n");
+my $filepath  = shift @ARGV or die("Usage: perl .\\synpack.pl <path_to_exe> <arguments>\n");
+my $exe_args = shift @ARGV or "";
 
 c_print("[+] Opening: ", $filepath);
 
@@ -92,7 +95,7 @@ open(my $file, "<:raw", $filepath) or die("[!] Cant open file! $!\n");
 #hex_print_file($file);
 my $file_bytes = get_file_bytes($file);
 close($file);
-hex_format_data($file_bytes);
+# hex_format_data($file_bytes);
 
 c_print("[+] Encrypting .NET executable\n");
 
@@ -102,10 +105,30 @@ my $hex_data = hex_format_data($enc_data);
 my $hex_key  = hex_format_data($key);
 my $hex_iv   = hex_format_data($iv);
 
-print("AES Data: $hex_data\n");
-print("AES Key: $hex_key\n");
-print("AES IV: $hex_iv\n");
-
-c_print("==> Copying template.rs to src/main.rs");
+c_print("[+] Copying template.rs to src/main.rs\n");
 
 copy("template.rs", "src\\main.rs") or die("Copy failed: $!\n");
+
+c_print("[+] Updating main.rs placeholders with payload data\n");
+
+my $args = "";
+$args = "String::from(\"$exe_args\")" if $exe_args;
+
+my $template = path(".\\src\\main.rs");
+my $replace = $template->slurp_utf8;
+
+$replace =~ s/SYNPACK_KEY/$hex_key/g;
+$replace =~ s/SYNPACK_IV/$hex_iv/g;
+$replace =~ s/SYNPACK_DATA/$hex_data/g;
+$replace =~ s/SYNPACK_ARGS/$args/g;
+
+$template->spew_utf8($replace);
+
+c_print("[+] Compiling...\n");
+
+my $exepath = ".\\target\\release\\synpack.exe";
+unlink($exepath) if -e $exepath;
+
+system("cargo build --release");
+
+c_print("[+] Done! Payload located at: ", $exepath) if -e $exepath;
