@@ -124,7 +124,7 @@ $replace =~ s/SYNPACK_ARGS/$args/g;
 
 $template->spew_utf8($replace);
 
-c_print("[+] Compiling...\n");
+c_print("[+] Compiling, this could take a while...\n");
 
 my $exepath = ".\\target\\release\\synpack.exe";
 unlink($exepath) if -e $exepath;
