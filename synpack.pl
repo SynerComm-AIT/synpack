@@ -108,7 +108,7 @@ Usage: perl .\\synpack.pl <path or url to exe> <arguments>
 (You can also omit the arguments and pass them directly to the binary)
 };
 my $filepath  = shift @ARGV or die $usage;
-my $exe_args  = shift @ARGV or "";
+my $exe_args  = shift @ARGV;
 my $encrypt   = 0;
 my $web       = 0;
 my $url       = "";
