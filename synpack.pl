@@ -207,6 +207,9 @@ $replace =~ s/decrypt_aes/$random_func_name/g if $encrypt;
 $random_func_name = gen_random_string(14);
 $replace =~ s/time_delay/$random_func_name/g;
 
+$random_func_name = gen_random_string(11);
+$replace =~ s/mscoree_loader/$random_func_name/g;
+
 if ($url) {
     $replace =~ s/SYNPACK_URL/$url/g;
     $replace =~ s/vec\!\[SYNPACK_DATA\];/get_data().await;/g;
