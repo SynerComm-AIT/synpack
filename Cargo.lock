@@ -1023,6 +1023,7 @@ dependencies = [
  "clroxide",
  "dinvoke",
  "futures-util",
+ "litcrypt",
  "reqwest",
  "tokio",
  "windows 0.51.1",

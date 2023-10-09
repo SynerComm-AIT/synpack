@@ -227,6 +227,11 @@ $resp = <>;
 chomp $resp;
 purge_builds() if lc($resp) eq "y";
 
+
+my $litcrypt_key = gen_random_string(12);
+c_print("[+] Setting litcrypt key to: ", "$litcrypt_key\n", BRIGHT_GREEN);
+$ENV{'LITCRYPT_ENCRYPT_KEY'} = $litcrypt_key;
+
 c_print("[+] Compiling, this could take a while...\n");
 
 my $exepath = ".\\target\\release\\$binary_name.exe";
