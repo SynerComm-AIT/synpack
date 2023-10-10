@@ -2,6 +2,9 @@
 
 Simple packer that executes .NET binaries in memory. It can AES encrypt a .NET binary and embed it into the synpack binary, decrypting and executing in memory. Or it can download the .NET binary from a remote URL (encrypted or unencrypted) and execute it in memory that way.
 
+* Patches AMSI and ETW
+* All functions and some select variables are replaced with random strings
+
 1. Ensure Rust is installed: https://www.rust-lang.org/tools/install
 2. Install Perl (Windows): https://strawberryperl.com/
 
