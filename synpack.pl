@@ -229,9 +229,6 @@ $replace =~ s/func_addr/$random_func_name/g;
 $random_func_name = gen_random_string(12);
 $replace =~ s/kernel32_addr/$random_func_name/g;
 
-$random_func_name = gen_random_string(9);
-$replace =~ s/base_addr/$random_func_name/g;
-
 $random_func_name = gen_random_string(10);
 $replace =~ s/amsi_addr/$random_func_name/g;
 
